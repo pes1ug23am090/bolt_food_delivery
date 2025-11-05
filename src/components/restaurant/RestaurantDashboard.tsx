@@ -95,12 +95,24 @@ export default function RestaurantDashboard() {
     try {
       const { data, error } = await supabase
         .from('orders')
-        .select('*, profiles(full_name, phone)')
+        .select(`
+          *,
+          profiles!customer_id(full_name, phone)
+        `)
         .eq('restaurant_id', restaurant.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setOrders(data || []);
+
+      const ordersWithProfiles = data?.map(order => ({
+        ...order,
+        profiles: {
+          full_name: order.profiles?.[0]?.full_name || 'Unknown',
+          phone: order.profiles?.[0]?.phone || null
+        }
+      })) || [];
+
+      setOrders(ordersWithProfiles);
     } catch (error) {
       console.error('Error loading orders:', error);
     }
