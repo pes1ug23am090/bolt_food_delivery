@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase, Order, Restaurant } from '../../lib/supabase';
-import { LogOut, Truck, MapPin, Phone, Navigation } from 'lucide-react';
+import { LogOut, Truck, MapPin, Phone, Navigation, Copy, Check } from 'lucide-react';
 
 interface OrderWithDetails extends Order {
   restaurants: Restaurant;
@@ -15,6 +15,8 @@ export default function DeliveryDashboard() {
   const { profile, signOut } = useAuth();
   const [orders, setOrders] = useState<OrderWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showingOtp, setShowingOtp] = useState<{ [key: string]: string }>({});
+  const [copiedOtp, setCopiedOtp] = useState<string | null>(null);
 
   useEffect(() => {
     loadOrders();
@@ -83,14 +85,24 @@ export default function DeliveryDashboard() {
     }
   };
 
+  const generateOTP = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  };
+
   const updateDeliveryStatus = async (orderId: string, status: string) => {
     try {
+      const updateData: any = {
+        status,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (status === 'picked_up') {
+        updateData.delivery_otp = generateOTP();
+      }
+
       const { error } = await supabase
         .from('orders')
-        .update({
-          status,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', orderId);
 
       if (error) throw error;
@@ -110,6 +122,12 @@ export default function DeliveryDashboard() {
       console.error('Error updating status:', error);
       alert('Failed to update delivery status');
     }
+  };
+
+  const copyOTPToClipboard = (otp: string) => {
+    navigator.clipboard.writeText(otp);
+    setCopiedOtp(otp);
+    setTimeout(() => setCopiedOtp(null), 2000);
   };
 
   const availableOrders = orders.filter(o => o.status === 'ready' && !o.delivery_agent_id);
@@ -212,15 +230,39 @@ export default function DeliveryDashboard() {
                       ${order.final_amount.toFixed(2)}
                     </p>
 
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-3 w-full">
                       {order.status === 'picked_up' && (
-                        <button
-                          onClick={() => updateDeliveryStatus(order.id, 'delivered')}
-                          className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm flex items-center gap-2"
-                        >
-                          <Navigation className="w-4 h-4" />
-                          Mark Delivered
-                        </button>
+                        <>
+                          {order.delivery_otp && (
+                            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                              <p className="text-xs text-blue-600 font-medium mb-1">Share this OTP with customer:</p>
+                              <div className="flex items-center justify-between">
+                                <p className="text-2xl font-bold text-blue-900 tracking-widest">{order.delivery_otp}</p>
+                                <button
+                                  onClick={() => copyOTPToClipboard(order.delivery_otp!)}
+                                  className={`p-2 rounded-lg transition-colors ${
+                                    copiedOtp === order.delivery_otp
+                                      ? 'bg-green-100 text-green-600'
+                                      : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                                  }`}
+                                >
+                                  {copiedOtp === order.delivery_otp ? (
+                                    <Check className="w-4 h-4" />
+                                  ) : (
+                                    <Copy className="w-4 h-4" />
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          <button
+                            onClick={() => updateDeliveryStatus(order.id, 'delivered')}
+                            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm flex items-center justify-center gap-2 w-full"
+                          >
+                            <Navigation className="w-4 h-4" />
+                            Mark Delivered
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>

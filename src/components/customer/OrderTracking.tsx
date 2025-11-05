@@ -1,16 +1,21 @@
 import { useState, useEffect } from 'react';
 import { supabase, Order, Restaurant } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { Package, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Package, Clock, CheckCircle, XCircle, Lock } from 'lucide-react';
 
 interface OrderWithRestaurant extends Order {
   restaurants: Restaurant;
+  delivery_otp?: string;
+  otp_verified_at?: string;
 }
 
 export default function OrderTracking() {
   const { user } = useAuth();
   const [orders, setOrders] = useState<OrderWithRestaurant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [verifyingOtp, setVerifyingOtp] = useState<string | null>(null);
+  const [otpInput, setOtpInput] = useState('');
+  const [otpError, setOtpError] = useState('');
 
   useEffect(() => {
     loadOrders();
@@ -63,6 +68,39 @@ export default function OrderTracking() {
       case 'delivered': return CheckCircle;
       case 'cancelled': return XCircle;
       default: return Package;
+    }
+  };
+
+  const verifyOTP = async (orderId: string, order: OrderWithRestaurant) => {
+    if (!otpInput.trim()) {
+      setOtpError('Please enter OTP');
+      return;
+    }
+
+    try {
+      if (otpInput !== order.delivery_otp) {
+        setOtpError('Invalid OTP. Please try again.');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          status: 'delivered',
+          otp_verified_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', orderId);
+
+      if (error) throw error;
+
+      setVerifyingOtp(null);
+      setOtpInput('');
+      setOtpError('');
+      loadOrders();
+    } catch (error) {
+      console.error('Error verifying OTP:', error);
+      setOtpError('Failed to verify OTP. Please try again.');
     }
   };
 
@@ -146,6 +184,70 @@ export default function OrderTracking() {
                   <p className="text-sm text-gray-600 mt-3">
                     Delivery to: {order.delivery_address}
                   </p>
+                )}
+
+                {order.status === 'picked_up' && !order.otp_verified_at && (
+                  <div className="mt-4 p-4 bg-orange-50 rounded-lg">
+                    {verifyingOtp === order.id ? (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-900 mb-2">
+                          <Lock className="w-4 h-4 inline mr-2" />
+                          Enter OTP from delivery agent:
+                        </label>
+                        <input
+                          type="text"
+                          value={otpInput}
+                          onChange={(e) => {
+                            setOtpInput(e.target.value);
+                            setOtpError('');
+                          }}
+                          placeholder="Enter 6-digit OTP"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent mb-2"
+                          maxLength={6}
+                        />
+                        {otpError && (
+                          <p className="text-sm text-red-600 mb-2">{otpError}</p>
+                        )}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => verifyOTP(order.id, order)}
+                            className="flex-1 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium"
+                          >
+                            Verify OTP
+                          </button>
+                          <button
+                            onClick={() => {
+                              setVerifyingOtp(null);
+                              setOtpInput('');
+                              setOtpError('');
+                            }}
+                            className="flex-1 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-orange-800">
+                          Your food is on the way! Ask delivery agent for OTP.
+                        </p>
+                        <button
+                          onClick={() => setVerifyingOtp(order.id)}
+                          className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium"
+                        >
+                          Have OTP?
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {order.otp_verified_at && (
+                  <div className="mt-4 p-4 bg-green-50 rounded-lg flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    <span className="text-sm text-green-800">Order delivered successfully!</span>
+                  </div>
                 )}
               </div>
             </div>

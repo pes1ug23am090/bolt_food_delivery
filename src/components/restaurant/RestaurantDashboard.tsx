@@ -314,39 +314,49 @@ export default function RestaurantDashboard() {
                         Delivery Address: {order.delivery_address}
                       </p>
 
-                      <div className="flex gap-2">
-                        {order.status === 'pending' && (
-                          <>
+                      <div className="flex flex-col gap-2">
+                        {order.delivery_agent_id && order.status !== 'delivered' && (
+                          <div className="p-2 bg-blue-50 rounded-lg border border-blue-200">
+                            <p className="text-xs text-blue-600 font-medium">
+                              Delivery Agent assigned - Order in transit
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="flex gap-2">
+                          {order.status === 'pending' && (
+                            <>
+                              <button
+                                onClick={() => updateOrderStatus(order.id, 'accepted')}
+                                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
+                              >
+                                Accept
+                              </button>
+                              <button
+                                onClick={() => updateOrderStatus(order.id, 'cancelled')}
+                                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
+                          {order.status === 'accepted' && (
                             <button
-                              onClick={() => updateOrderStatus(order.id, 'accepted')}
-                              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
+                              onClick={() => updateOrderStatus(order.id, 'preparing')}
+                              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
                             >
-                              Accept
+                              Start Preparing
                             </button>
+                          )}
+                          {order.status === 'preparing' && (
                             <button
-                              onClick={() => updateOrderStatus(order.id, 'cancelled')}
-                              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"
+                              onClick={() => updateOrderStatus(order.id, 'ready')}
+                              className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm"
                             >
-                              Reject
+                              Mark Ready
                             </button>
-                          </>
-                        )}
-                        {order.status === 'accepted' && (
-                          <button
-                            onClick={() => updateOrderStatus(order.id, 'preparing')}
-                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
-                          >
-                            Start Preparing
-                          </button>
-                        )}
-                        {order.status === 'preparing' && (
-                          <button
-                            onClick={() => updateOrderStatus(order.id, 'ready')}
-                            className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm"
-                          >
-                            Mark Ready
-                          </button>
-                        )}
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
