@@ -23,12 +23,16 @@ function AppContent() {
   switch (profile.role) {
     case 'customer':
       return <CustomerDashboard />;
-    case 'restaurant':
+
+    case 'restaurant_owner':
       return <RestaurantDashboard />;
+
     case 'delivery_agent':
       return <DeliveryDashboard />;
+
     case 'admin':
       return <AdminDashboard />;
+
     default:
       return <Auth />;
   }
